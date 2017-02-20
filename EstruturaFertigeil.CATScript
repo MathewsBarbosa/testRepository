@@ -1,0 +1,175 @@
+Language="VBSCRIPT"
+
+Sub CATMain()
+	
+	Dim b1, b2, b3, b4 As Body
+	Dim sf As ShapeFactory
+	Dim bodyToBeCopied As Body
+	Dim fertigeilName, aenderungNumber, kdNumber, ncNumber as String
+	Dim altDay, altMonth, altYear as String
+	Dim selectedObject As Object
+	Dim var(0) as variant
+	
+
+	var(0) = "Body" 'type to search
+	
+	On Error Resume Next
+	
+	confirmation = MsgBox ("Selecione o 'Body' que pretende criar uma estrutura", 1 ,"Estrutura 39D945")
+	
+	if confirmation = 1 then
+	
+	'Seleção de body copiado "As Result"///////////////////////////////////////////////////
+	
+		Set selectedObject = CATIA.ActiveDocument.Selection
+		
+		selectedObject.Clear
+		
+		selectedResult = selectedObject.SelectElement2(var, "Selecione o 'Body' que pretende criar uma estrutura", false)
+		
+		'Guarda o Body selecionado
+		Set bodyToBeCopied = selectedObject.Item(1).Value
+		
+		aenderungNumber = InputBox("Número de Aenderung")
+		kdNumber 		= InputBox("Número de KD")
+		ncNumber 		= InputBox("Número de NC")
+		
+		fertigeilName = "Fertigeil_Aenderung" & aenderungNumber & _
+						"_KD" & kdNumber & "_" & _
+						"NC"  & ncNumber & "__" & Date
+		
+	'Seleção de body copiado "As Result"///////////////////////////////////////////////////
+		
+	'Criação de estrutura 39D945///////////////////////////////////////////////////////////
+		
+		Set sf = CATIA.ActiveDocument.Part.ShapeFactory
+
+		Set b1 = CATIA.ActiveDocument.Part.Bodies.Add()
+		Set b2 = CATIA.ActiveDocument.Part.Bodies.Add()
+
+		b1.Name = "Schweissen_" & aenderungNumber
+		b2.Name = "Aenderung" & aenderungNumber & "_Materialzugabe" 
+		
+		set currentHybridBody = b2.HybridBodies.Add()
+		
+		currentHybridBody.Name = "Eingangselem_Aenderung" & aenderungNumber
+		
+		sf.AddNewAssemble b1
+
+		Set b3 = CATIA.ActiveDocument.Part.Bodies.Add()
+
+		b3.Name = "Aenderung" & aenderungNumber & "_Bearbeitung"
+		
+		createHole "XY"
+		createHole "YZ"
+		
+		selectedObject.Clear
+
+		selectedObject.Add bodyToBeCopied
+
+		selectedObject.Copy
+
+		selectedObject.PasteSpecial("CATPrtResultWithOutLink")
+		
+		sf.AddNewAssemble b2		
+		sf.AddNewAssemble b3
+		
+		selectedObject.Item(1).Value.Name = fertigeilName
+		
+		'Mudar nome de Assemble///////////////////////////////////////////////////////////////
+		
+		Dim flag as Boolean
+		
+		For Each bds in CATIA.ActiveDocument.Part.Bodies
+		
+			If bds.Name = fertigeilName then
+
+				Set tShape = bds.Shapes
+				
+				For Each shps in tShape
+					
+					if InStr(shps.Name, "Assemble") then
+						if flag = false then 
+							shps.Name = "Aenderung" & aenderungNumber &"_Materialzugabe"
+							flag = true
+						else
+							shps.Name = "Aenderung" & aenderungNumber &"_Bearbeitung"
+						end if
+					end if
+					
+				Next
+				
+			End if
+		
+		Next
+		
+		'END Mudar nome de Assemble///////////////////////////////////////////////////////////////
+		
+		selectedObject.Clear
+		
+		CATIA.ActiveDocument.Part.Update
+		
+		'if shit fucks up just panic!
+		If Err.Number <> 0 then ErrorHandler
+
+	'End Criação de estrutura 39D945///////////////////////////////////////////////////////
+		
+	Else
+	
+		MsgBox "Macro cancelada", 64 ,"Info"
+		
+	End if
+
+End Sub
+
+Sub createHole(str as String)
+	
+	Set partDocument1 = CATIA.ActiveDocument
+
+	Set part1 = partDocument1.Part
+
+	Set shapeFactory1 = part1.ShapeFactory
+
+	Set originElements1 = part1.OriginElements
+	
+	if str = "XY" then
+	
+		Set hybridShapePlaneExplicit1 = originElements1.PlaneXY
+	
+	elseif str = "YZ" then
+	
+		Set hybridShapePlaneExplicit1 = originElements1.PlaneYZ
+		
+	end if
+
+	Set reference1 = part1.CreateReferenceFromObject(hybridShapePlaneExplicit1)
+
+	Set hole1 = shapeFactory1.AddNewHole(reference1, 10.000000)
+
+	hole1.Type = catSimpleHole
+
+	hole1.AnchorMode = catExtremPointHoleAnchor
+
+	hole1.BottomType = catVHoleBottom
+
+	Set limit1 = hole1.BottomLimit
+
+	limit1.LimitMode = catOffsetLimit
+
+	Set length1 = hole1.Diameter
+
+	length1.Value = 10.000000
+
+	Set angle1 = hole1.BottomAngle
+
+	angle1.Value = 120.000000
+
+	hole1.ThreadingMode = catSmoothHoleThreading
+
+	hole1.ThreadSide = catRightThreadSide
+	
+end sub
+
+Sub ErrorHandler()
+	MsgBox "Falha na execução da macro!", 16 ,"Error"
+End Sub
