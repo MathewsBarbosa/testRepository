@@ -1,0 +1,265 @@
+Public Class Form1
+    Dim t1, t2 As New toy
+    Dim bArr As New Collection()
+
+    'CONSTRUCTOR
+    Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        'Valores iniciais
+
+        Timer1.Enabled = True
+
+        t1.toyValuesConstructer(0.3, 0.8, 10, 0.1, 8, 0.1, 10, 300, 4)
+        t1.toyBodyConstructer(Color.Black, Color.Red, "p1", 12, 12)
+        t1.toyKeysConstructer(Keys.A, Keys.D, Keys.W, Keys.Space)
+        Me.Controls.Add(t1.lb)
+        t2.toyValuesConstructer(0.3, 0.8, 10, 0.1, 8, 0.1, 10, 300, 4)
+        t2.toyBodyConstructer(Color.Pink, Color.Blue, "p2", 230, 12)
+        t2.toyKeysConstructer(Keys.Left, Keys.Right, Keys.Up, Keys.NumPad0)
+        Me.Controls.Add(t2.lb)
+        
+    End Sub
+
+    'GET OBJECTS LIST
+    Private Sub Form1_Shown(sender As Object, e As EventArgs) Handles Me.Shown
+        For i = 0 To Me.Controls.Count - 1
+            If InStr(Me.Controls.Item(i).Controls.Owner.ToString, "PictureBox") <> 0 Or InStr(Me.Controls.Item(i).Controls.Owner.ToString, "Label") <> 0 Then
+                bArr.Add(Me.Controls.Item(i))
+            End If
+        Next
+    End Sub
+
+    'KEY EVENTS
+    Private Sub Form1_KeyDown(sender As Object, e As KeyEventArgs) Handles Me.KeyDown
+
+        t1.PressKey(e)
+        t2.PressKey(e)
+
+    End Sub
+
+    Private Sub Form1_KeyUp(sender As Object, e As KeyEventArgs) Handles Me.KeyUp
+
+        t1.ReleaseKey(e)
+        t2.ReleaseKey(e)
+
+    End Sub
+
+    'UPDATE 
+    Private Sub Timer1_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick
+        'Atualiza por milesegundo
+
+        For i = 1 To bArr.Count
+            If t1.Collision(bArr.Item(i)) Then
+                If bArr.Item(i).Name = "p2" And t1.jump = False Then
+                    Debug.Print(bArr.Item(i).Name)
+                    t2.dieToy(Label1)
+                End If
+                Exit For
+            End If
+        Next
+
+        For i = 1 To bArr.Count
+            If t2.Collision(bArr.Item(i)) Then
+                If bArr.Item(i).Name = "p1" And t2.jump = False Then
+                    Debug.Print(bArr.Item(i).Name)
+                    t1.dieToy(Label2)
+                End If
+                Exit For
+            End If
+        Next
+
+        If t1.lb.top >= 300 Then
+            t1.dieToy(Label2)
+        End If
+        If t2.lb.top >= 300 Then
+            t2.dieToy(Label1)
+        End If
+
+        t1.Update()
+        t2.Update()
+
+    End Sub
+
+End Class
+
+'CLASS TOY AKA PLAYER
+
+Public Class toy
+    Dim gravity, jumpSpeed, gravityMaxAccel, gravityAccel, jumpAccel, gravityResetVal, jumpSpeedResetVal As Double
+    Public goRight, goLeft, jump, onPlat, lockL, lockR As Boolean
+    Dim hSpeed, varHeight, lc1, lc2 As Integer
+    Dim kLeft, kRight, kJump, kPush As Keys
+    Dim onGround, doubleJump, isPushing As Boolean
+    Public lb
+
+    Sub toyValuesConstructer(gA As Double, jA As Double, gMA As Double, gRV As Double, jSRV As Double, g As Double, j As Double, vH As Integer, hS As Integer)
+
+        gravityAccel = gA
+        jumpAccel = jA
+        gravityMaxAccel = gMA
+        gravityResetVal = gRV
+        jumpSpeedResetVal = jSRV
+        gravity = g
+        jumpSpeed = j
+        varHeight = vH
+        hSpeed = hS
+
+    End Sub
+
+    Sub toyBodyConstructer(toyBGColor As Color, toyFaceColor As Color, pName As String, l1 As Integer, l2 As Integer)
+
+        lb = New System.Windows.Forms.Label()
+        lb.AutoSize = True
+        lb.BackColor = toyBGColor
+        lb.ForeColor = toyFaceColor
+        lc1 = l1
+        lc2 = l2
+        lb.Location = New System.Drawing.Point(l1, l2)
+        lb.Name = pName
+        lb.Size = New System.Drawing.Size(18, 13)
+        lb.TabIndex = 0
+        lb.Text = "*-*"
+
+    End Sub
+
+    Sub toyKeysConstructer(kL As Keys, kR As Keys, kJ As Keys, kP As Keys)
+
+        kLeft = kL
+        kRight = kR
+        kJump = kJ
+        kPush = kP
+
+    End Sub
+
+    Sub PressKey(e As KeyEventArgs)
+
+        If lockR = False Then
+            If e.KeyCode = kRight Then
+                goRight = True
+                goLeft = False
+            End If
+        End If
+
+        If lockL = False Then
+            If e.KeyCode = kLeft Then
+                goLeft = True
+                goRight = False
+            End If
+        End If
+
+        If onGround Then
+            doubleJump = True
+            If e.KeyCode = kJump Then
+                jump = True
+            End If
+        ElseIf doubleJump Then
+            doubleJump = False
+            If e.KeyCode = kJump Then
+                jump = True
+            End If
+        End If
+
+        If e.KeyCode = kPush Then
+            isPushing = True
+        End If
+
+    End Sub
+
+    Sub ReleaseKey(e As KeyEventArgs)
+        If e.KeyCode = kRight Then
+            goRight = False
+        End If
+
+        If e.KeyCode = kLeft Then
+            goLeft = False
+        End If
+
+        If e.KeyCode = kPush Then
+            isPushing = False
+        End If
+
+    End Sub
+
+    Function Collision(pb As Object) As Boolean
+
+        If lb.Location.X > pb.Location.X - 15 And lb.Location.X < pb.Location.X + pb.Size.Width And lb.Location.Y > pb.Location.Y - 15 And lb.Location.Y < pb.Location.Y Then
+            If InStr(pb.Name, "Label") = 0 Then
+                varHeight = pb.Top - 13
+                Collision = True
+                onGround = True
+            Else
+                varHeight = 300
+                Collision = False
+            End If
+        Else
+            varHeight = 300
+            Collision = False
+        End If
+
+    End Function
+
+    'testing out
+    'Function CollisionBetweenPlayers(other As Label)
+
+    '    If lb.location.x > other.Location.X - 20 And lb.location.x < other.Location.X + 20 And lb.location.y > other.Location.Y - 10 And lb.location.y < other.Location.Y + 10 Then
+
+    '        If goLeft Then
+    '            lockL = True
+    '            goLeft = False
+    '            lb.Left = other.Location.X + 18
+    '        End If
+
+    '        If goRight Then
+    '            lockR = True
+    '            goRight = False
+    '            lb.Left = other.Location.X - 18
+    '        End If
+    '        Return True
+
+    '    Else
+    '        lockL = False
+    '        lockR = False
+    '        Return False
+    '    End If
+
+    'End Function
+
+    Sub Update()
+        If lb.Top < varHeight Then
+            If Not jump Then
+                lb.Top = lb.Top + gravity
+                If gravity < gravityMaxAccel Then
+                    gravity = gravity + gravityAccel
+                End If
+            End If
+            onGround = False
+        Else
+            gravity = gravityResetVal
+            lb.Top = varHeight
+            onGround = True
+        End If
+
+        If jump Then
+            lb.Top = lb.Top - jumpSpeed
+            If jumpSpeed > 0 Then
+                jumpSpeed = jumpSpeed - jumpAccel
+                gravity = gravityResetVal
+            Else
+                jump = False
+                jumpSpeed = jumpSpeedResetVal
+            End If
+        End If
+
+        If goRight Then lb.Left = lb.Left + hSpeed
+
+        If goLeft Then lb.Left = lb.Left - hSpeed
+
+    End Sub
+
+    Sub dieToy(lt As Label)
+        lb.left = lc1
+        lb.top = lc2
+        lt.Text = lt.Text + 1
+    End Sub
+
+End Class
+
